@@ -1,0 +1,180 @@
+# workbench.yaml — annotated reference
+#
+# This is a fictional two-workspace project, not any real one. It exists to
+# show the shape: which keys exist, what each is for, and what a *parked*
+# value looks like when nobody could answer yet.
+#
+# You do not write this file by hand. Init writes it, one section at a time,
+# and every value in it is one a human confirmed. If you find yourself editing
+# it directly, that is fine for a typo — but a new section belongs to init, so
+# the provenance rules still apply.
+
+schema_version: "1.0"     # shape of this file. Changes only when a key changes meaning
+package_version: "0.5.0"  # the workbench that generated it. Drives migrate mode
+
+# ---------------------------------------------------------------------------
+# Section 1 — Workspaces (required)
+#
+# `type` decides which verify/{type}.md runs, so a wrong type is a wrong
+# verification for the life of this config.
+#   type: app | test-suite | tooling | ci | docs | infra | skill
+#   mode (apps only): ui | be | infra
+# ---------------------------------------------------------------------------
+workspaces:
+  web:
+    type: app
+    mode: ui
+    path: ./web
+    framework: React (Vite)
+    design_system: "@acme/design"     # omit or null when there is none
+    dev_server: http://localhost:5173
+    start_cmd: npm run dev
+    api_endpoint: http://localhost:8000/api
+    skills_dir: .claude/skills        # the workspace's own agent config, whatever form it takes
+    tracker_project: SHOP
+
+  api:
+    type: app
+    mode: be
+    path: ./services/api
+    framework: FastAPI
+    dev_server: http://localhost:8000
+    start_cmd: uvicorn app.main:app --reload
+    docker_container: acme_api
+    tracker_project: SHOP
+
+  tests:
+    type: test-suite
+    path: ./tests
+    framework: pytest + playwright
+    venv: .venv-test                  # protocols use this rather than a global interpreter
+    start_cmd: bash run.sh --setup
+    run_cmd: bash run.sh --run={markers}
+    tracker_project: SHOP
+
+# ---------------------------------------------------------------------------
+# Section 2 — Roles (required)
+#
+# Declaring a role without its entrypoints is worse than omitting it: the role
+# will route to a guessed command. A developer-only project declares one.
+# ---------------------------------------------------------------------------
+roles:
+  developer:
+    start: npm run dev
+    verify: npm test
+  qa:
+    runner: bash run.sh --run={markers}
+    venv: .venv-test
+    mock_admin: http://localhost:8080/__admin
+    # Where test support lives. The slot names are fixed by the workbench; the
+    # paths are yours. This is declared rather than discovered because no two
+    # suites lay themselves out the same way — a protocol that goes looking for
+    # "the conftest" finds the wrong one in silence, and a scaffolded test then
+    # imports helpers that are not the shared ones.
+    # Every slot is optional. Omit what does not exist rather than inventing it.
+    layout:
+      fixtures: ./tests/conftest.py      # shared runner fixtures
+      helpers: ./tests/helpers.py        # shared test utilities
+      suites:                            # roots holding the tests. A list: second roots are common
+        - ./tests/e2e
+      selectors: ./pyproject.toml        # where markers/tags are declared
+      reports: ./tests/reports           # where run output lands
+      guides: ./tests/guides             # the workspace's own test-writing docs
+  reviewer:
+    diff_scope: origin/main...HEAD
+    verify_profile: verify/common.md
+
+# ---------------------------------------------------------------------------
+# Section 3 — Stack (skippable)
+#
+# bootstrap_order is the one nobody can infer safely. It is an ordering
+# constraint, not a preference — skipping or reordering it breaks setup in
+# ways that surface much later.
+# ---------------------------------------------------------------------------
+stack:
+  compose_files:
+    infra: docker-compose.infra.yaml
+    app: docker-compose.yaml
+  health_check: bash scripts/status.sh
+  bootstrap_order:
+    - infra
+    - app
+  cli_map:
+    setup: bash scripts/setup.sh
+    start: docker compose up -d
+    stop: docker compose down
+    status: bash scripts/status.sh
+
+# ---------------------------------------------------------------------------
+# Section 4 — Network (skippable)
+#
+# Record any host that resolves differently inside a container than on the
+# host. That asymmetry causes "the stub registered but the real upstream was
+# still hit", and it is invisible by the time you hit it.
+# ---------------------------------------------------------------------------
+hostnames:
+  web: localhost
+  api: localhost
+  mock: localhost         # containers reach this as `mock`, host reaches it as localhost
+
+ports:
+  web: 5173
+  api: 8000
+  mock: 8080
+  postgres: 5432
+
+# ---------------------------------------------------------------------------
+# Section 5 — Mocks (skippable)
+#
+# mock.type is required if this section exists. Without it, stub-and-capture
+# stops rather than guessing an admin API — a guessed API returns 404s that
+# read as "the stub did not register".
+# ---------------------------------------------------------------------------
+mock:
+  type: wiremock          # wiremock | mockserver | prism | <your adapter>
+  admin_url: http://localhost:8080/__admin
+  base_url: http://localhost:8080
+  stubs:
+    payments: mocks/mappings/payments.json
+    inventory: mocks/mappings/inventory.json
+  seeded:
+    - catalog fixtures, loaded by scripts/seed.py
+
+# ---------------------------------------------------------------------------
+# Section 6 — Env vars (skippable)
+#
+# Names and purposes only. NEVER a value: a secret here is a secret in version
+# control.
+# ---------------------------------------------------------------------------
+env_vars:
+  required:
+    - NPM_AUTH_TOKEN          # private registry access for @acme/design
+    - DATABASE_URL            # postgres connection string
+  optional:
+    - SENTRY_DSN              # error reporting; unset disables it
+  reference: .env.example
+
+# ---------------------------------------------------------------------------
+# Section 7 — Docs & references (skippable)
+#
+# `contracts` is a READ-ONLY pointer to whatever the project's lifecycle tool
+# owns. The workbench reads contracts; it never authors them.
+# ---------------------------------------------------------------------------
+docs_review:
+  source: null              # TODO: external doc space not identified yet — parked at init
+  local_docs: ./docs
+
+discovery:
+  contracts: ./contracts    # read-only. Owned by the lifecycle tool
+  scope_boundaries: .workbench/domain/scope-boundaries.md
+
+probe:
+  # Scratch space for investigation probes. MUST be outside every workspace
+  # source tree — a probe committed to a repo is a failure mode, not a helper.
+  probe_dir: ~/scratch/probes
+  group_per_investigation: true
+
+# No `handoff` key. The capture template ships with the package, and
+# stub-and-capture resolves it relative to itself — an instance pointing at a
+# package path would resolve `./framework/` against *this* repository, where
+# the package does not live.

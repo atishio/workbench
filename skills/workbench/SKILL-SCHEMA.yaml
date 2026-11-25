@@ -1,0 +1,78 @@
+# Contract for the workbench skill.
+#
+# ---------------------------------------------------------------------------
+# DRAFT. NON-NORMATIVE. NOTHING READS THIS FILE.
+#
+# Verified 2026-11-13: SKILL.md does not reference it, no protocol under
+# framework/ references it, the skills CLI does not read it -- its lockfile
+# knows only skillPath, which points at SKILL.md -- and no other skill in the
+# collection ships one. The sole references anywhere are two lines of README
+# prose.
+#
+# It is kept deliberately, as a sketch of the input format a future skill
+# registrar would consume, not because anything depends on it. Treat it as
+# intent, never as a source of truth: if this file and SKILL.md disagree,
+# SKILL.md is right by definition, because SKILL.md is the thing that runs.
+#
+# The risk is drift, and it has already happened once -- the asset key below
+# was renamed from `install` to `setup` to track a documentation rename, in a
+# file no parser would have flagged either way. Expect more of that. Before
+# building anything on this, re-derive it from SKILL.md rather than trusting
+# what is written here.
+# ---------------------------------------------------------------------------
+contract: 1
+store_key: workbench
+
+inputs:
+  task:
+    description: >
+      The hands-on task to perform, in the human's own words. Routing reads
+      this for the role and the protocol, so paraphrasing it into a category
+      loses the signal.
+    required: true
+
+  workspace:
+    description: >
+      Which workspace the task targets, by the name it carries in
+      .workbench/workbench.yaml. Omit to let the skill deduce it from the files
+      under discussion and the working directory.
+    resolved_by: deduced from task context when omitted
+
+  role:
+    description: >
+      Which role the task is being done in. Omit to let the skill deduce it
+      from the task signal. Reviewer role does not write to workspace source,
+      so naming it explicitly is a way to enforce that.
+    enum: [developer, qa, reviewer]
+
+outputs:
+  instance_config:
+    path: ${ROOT_PATH}/.workbench/workbench.yaml
+    format: yaml
+    description: >
+      The project instance config. Written only by init, repair and migrate —
+      an ordinary development task never touches it.
+
+# No `reports:` block. An earlier draft declared two report files,
+# workbench_init.md and workbench_session.md, as though they were outputs.
+# Neither has ever existed and no protocol writes either -- init.md and
+# dev-loop.md print their summaries into the conversation and write nothing.
+#
+# It is left recorded rather than quietly deleted because it is this file's
+# failure mode in miniature: a sketch nothing parses drifts from the thing that
+# runs, and a reader takes the sketch for a contract. If reports ever become
+# files, SKILL.md gains them first and this follows.
+
+assets:
+  protocols:
+    path: ./framework/protocol
+    description: Hub fallback protocols, used only where a workspace has no opinion.
+  templates:
+    path: ./framework/templates
+    description: Capture context template and the annotated reference config.
+  refs:
+    path: ./framework/ref
+    description: Capability-named tool references.
+  setup:
+    path: ./SETUP.md
+    description: Install, MCP wiring, reduced mode, and install verification.

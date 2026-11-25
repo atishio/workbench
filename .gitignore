@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+
+# Invariant 9's deny-list. It holds a consumer's product names, so committing
+# it would publish exactly what it exists to suppress — which is the bug that
+# 1.3.0 was cut to fix. Keep it local; point at it with WORKBENCH_DENYLIST if
+# you keep it elsewhere.
+.workbench-denylist

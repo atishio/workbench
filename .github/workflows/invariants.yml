@@ -1,0 +1,64 @@
+name: invariants
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invariants:
+    name: package invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Invariant 6 compares SKILL.md against the base of the change, so
+          # the base commit has to be present. A shallow clone makes the check
+          # silently unable to run, which this repo treats as a bug, not a pass.
+          fetch-depth: 0
+
+      - name: Resolve the diff range for invariant 6
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            echo "range=${base}...HEAD" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.before }}" ] \
+            && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            echo "range=${{ github.event.before }}...HEAD" >> "$GITHUB_OUTPUT"
+          else
+            # No resolvable base — invariant 6 reports UNKNOWN rather than passing.
+            echo "range=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the invariants
+        env:
+          RANGE: ${{ steps.range.outputs.range }}
+        run: ./scripts/invariants.sh
+
+      - name: Remind what CI cannot check
+        if: always()
+        run: |
+          {
+            echo "### What this job did not check"
+            echo
+            echo "**Invariant 9 did not run.** Its deny-list is deliberately not in"
+            echo "this repository — a list of a consumer's product names, committed"
+            echo "to a public repo, publishes exactly what it exists to suppress."
+            echo
+            echo "It is also incomplete by construction and cannot catch a term it"
+            echo "has never seen, so it is **not the control**. Before any release,"
+            echo "read these two files by hand:"
+            echo
+            echo '- `skills/workbench/framework/protocol/probe.md`'
+            echo '- `skills/workbench/framework/protocol/ai-failure-modes.md`'
+            echo
+            echo "They are where war stories land, and a war story is where a real"
+            echo "identifier arrives. That is how four class names from a private"
+            echo "codebase once survived every invariant run, and were caught by"
+            echo "reading the file rather than by any check."
+          } >> "$GITHUB_STEP_SUMMARY"

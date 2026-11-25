@@ -1,0 +1,72 @@
+name: Bug report
+description: The package did something other than what it says it does
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If you found an identifier from a real codebase inside this package,
+        **stop** and report it privately instead — see `SECURITY.md`. A public
+        issue republishes it.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: >-
+        The task you asked for, and what the workbench did. Paste the relevant
+        part of the session if you have it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and where the package says so
+      description: >-
+        A file and line if you can — `SKILL.md`, a protocol under `framework/`,
+        or `SETUP.md`. A mismatch between the documents is itself a bug worth
+        filing.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Which of these fits best
+      options:
+        - It wrote a value into .workbench/workbench.yaml that I never confirmed
+        - It reported a check as passing when the check could not run
+        - It routed to the wrong protocol, or to one that does not exist
+        - It overrode my repo's own conventions instead of filling a gap
+        - Reviewer role wrote to my source tree
+        - A referenced file path does not resolve
+        - Install or update problem
+        - Something else
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        The first two options are the package's core guarantees. Either one is
+        a serious report, not a nitpick — thank you for filing it.
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: >-
+        `version` in the installed `SKILL.md` frontmatter, and
+        `package_version` from your `.workbench/workbench.yaml` if they differ.
+      placeholder: "0.5.0"
+    validations:
+      required: true
+
+  - type: input
+    id: harness
+    attributes:
+      label: Harness
+      placeholder: "Claude Code / Codex / Cursor / OpenCode / other"
+    validations:
+      required: true
